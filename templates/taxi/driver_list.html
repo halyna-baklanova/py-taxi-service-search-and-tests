@@ -8,10 +8,11 @@
         Create
       </a>
     </h1>
-    <form method="get" action="">
-    {{ search_form|crispy }}
-    <input type="submit" value="🔍︎">
-    </form>
+  
+<div class="search-bar">
+    {% include 'includes/search_form.html' %}
+</div>
+  
     {% if driver_list %}
     <table class="table">
       <tr>
