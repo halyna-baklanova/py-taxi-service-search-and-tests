@@ -1,55 +1,77 @@
+from django.test import TestCase, RequestFactory
 from django.contrib.auth import get_user_model
-from django.test import TestCase, Client
+
+
 from django.urls import reverse
 
-from taxi.models import Driver
+from taxi.models import Driver, Car, Manufacturer
 
-MANUFACTURER_URL = reverse("taxi:manufacturer-list")
-DRIVER_URL = reverse("taxi:driver-list")
+INDEX_URL = reverse("taxi:index")
+DRIVER_LIST_URL = reverse("taxi:driver-list")
+CAR_LIST_URL = reverse("taxi:car-list")
+MANUFACTURER_LIST_URL = reverse("taxi:manufacturer-list")
 
 
-class PublicManufacturerTest(TestCase):
-    def setUp(self):
-        self.client = Client()
+class PublicRequiredTests(TestCase):
+    def test_index(self) -> None:
+        response = self.client.get(INDEX_URL)
+        self.assertNotEqual(response.status_code, 200)
 
-    def test_login_required(self):
-        response = self.client.get(MANUFACTURER_URL)
+    def test_driver_list(self):
+        response = self.client.get(DRIVER_LIST_URL)
+        self.assertNotEqual(response.status_code, 200)
+
+    def test_car_list(self):
+        response = self.client.get(CAR_LIST_URL)
+        self.assertNotEqual(response.status_code, 200)
+
+    def test_manufacturer_list(self):
+        response = self.client.get(MANUFACTURER_LIST_URL)
         self.assertNotEqual(response.status_code, 200)
 
 
-class PrivateDriverTest(TestCase):
-    def setUp(self):
+class PrivateTest(TestCase):
+    def setUp(self) -> None:
         self.user = get_user_model().objects.create_user(
-            "test",
-            "test54321",
+            username="driver",
+            password="password",
         )
-
         self.client.force_login(self.user)
 
-    def test_retrieve_drivers_list(self):
-        get_user_model().objects.create(
-            username="test_name",
-            first_name="test_first",
-            last_name="test_last",
-            license_number="SAF12536",
-        )
-
-        response = self.client.get(DRIVER_URL)
-        drivers = get_user_model().objects.all()
-
+    def test_retrieve_driver_list(self) -> None:
+        Driver.objects.create(username="user1", license_number="ABC12345")
+        Driver.objects.create(username="user2", license_number="ABC54321")
+        response = self.client.get(DRIVER_LIST_URL)
+        drivers = Driver.objects.all()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            list(response.context["driver_list"]),
-            list(drivers)
+            list(response.context["driver_list"]), list(drivers)
         )
         self.assertTemplateUsed(response, "taxi/driver_list.html")
 
-    def test_drivers_listed(self):
-        response = self.client.get(DRIVER_URL)
-        drivers = get_user_model().objects.all()
+    def test_retrieve_car_list(self) -> None:
+        manufacturer = Manufacturer.objects.create(
+            name="TestName", country="TestCountry"
+        )
+
+        Car.objects.create(model="TestModel", manufacturer=manufacturer)
+        Car.objects.create(model="TestModel2", manufacturer=manufacturer)
+
+        response = self.client.get(CAR_LIST_URL)
+        cars = Car.objects.all()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context["car_list"]), list(cars))
+        self.assertTemplateUsed(response, "taxi/car_list.html")
+
+    def test_retrieve_manufacturer_list(self) -> None:
+        Manufacturer.objects.create(name="TestName", country="TestName3")
+        Manufacturer.objects.create(name="TestName2", country="TestName4")
+        response = self.client.get(MANUFACTURER_LIST_URL)
+        manufacturers = Manufacturer.objects.all()
+
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            list(response.context["driver_list"]),
-            list(drivers)
+            list(response.context["manufacturer_list"]),
+            list(manufacturers),
         )
-        self.assertTemplateUsed(response, "taxi/driver_list.html")
+        self.assertTemplateUsed(response, "taxi/manufacturer_list.html")
